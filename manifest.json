@@ -1,11 +1,13 @@
 {
   "manifest_version": 3,
 
-  "name": "Loupe - IIIF Manifest Validtor",
+  "name": "Loupe - IIIF Manifest Validator",
   "version": "0.1.0",
   "description": "Validate and inspect IIIF Presentation manifests.",
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
-    "default_popup": "popup.html",
     "default_title": "open Loupe"
   }
 }
