@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+
+  "name": "Loupe - IIIF Manifest Validtor",
+  "version": "0.1.0",
+  "description": "Validate and inspect IIIF Presentation manifests.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "open Loupe"
+  }
+}
