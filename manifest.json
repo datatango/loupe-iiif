@@ -9,5 +9,6 @@
   },
   "action": {
     "default_title": "open Loupe"
-  }
+  },
+  "host_permissions": ["<all_urls>"]
 }
