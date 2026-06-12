@@ -5,3 +5,6 @@ dist/
 # os / editor
 .DS_Store
 *.log
+
+# claude
+CLAUDE.md

@@ -1,0 +1,26 @@
+{
+  "name": "loupe",
+  "version": "1.0.0",
+  "description": "",
+  "main": "background.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/datatango/loupe.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/datatango/loupe/issues"
+  },
+  "homepage": "https://github.com/datatango/loupe#readme",
+  "devDependencies": {
+    "vite": "^8.0.16",
+    "vite-plugin-web-extension": "^4.5.1"
+  }
+}
