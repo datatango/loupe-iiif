@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
 
-  "name": "Loupe - IIIF Manifest Validator",
+  "name": "Loupe - IIIF Manifest Checker & Validator",
   "version": "0.1.0",
-  "description": "Validate and inspect IIIF Presentation manifests.",
+  "description": "Check and validate IIIF Presentation manifests.",
   "background": {
     "service_worker": "background.js"
   },
