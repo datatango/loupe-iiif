@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IIIF Presentation 3.0 Manifest (minimal)",
+  "description": "A minimal, growable schema for the required top-level structure of an IIIF Presentation API 3.0 Manifest. Extend this as Loupe checks more of the spec.",
+  "type": "object",
+  "required": ["@context", "id", "type", "label", "items"],
+  "properties": {
+    "@context": {
+      "description": "Must reference the IIIF Presentation 3 context; may be a single string or an array of strings.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "id": {
+      "description": "The URI that identifies this Manifest.",
+      "type": "string"
+    },
+    "type": {
+      "description": "Must be the literal string 'Manifest'.",
+      "const": "Manifest"
+    },
+    "label": {
+      "description": "A language map: keys are language codes (or 'none'), values are arrays of strings.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "items": {
+      "description": "The list of Canvases that make up the Manifest.",
+      "type": "array"
+    }
+  }
+}
