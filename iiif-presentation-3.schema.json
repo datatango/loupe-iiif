@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "IIIF Presentation 3.0 Manifest (minimal)",
-  "description": "A minimal, growable schema for the required top-level structure of an IIIF Presentation API 3.0 Manifest. Extend this as Loupe checks more of the spec.",
+  "description": "A minimal, growable schema for the required top-level structure of an IIIF Presentation API 3.0 Manifest.",
   "type": "object",
   "required": ["@context", "id", "type", "label", "items"],
   "properties": {
