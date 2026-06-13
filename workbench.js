@@ -1,8 +1,7 @@
 // runs in workbench tab
-// The validator is precompiled from the IIIF schema at build time
-// (see scripts/build-validator.js). Browser extensions forbid eval, and Ajv's
-// normal runtime compilation uses new Function, so we import the ready-made
-// validation function instead of compiling the schema here.
+// the validator is precompiled from the IIIF schema at build time
+// (see scripts/build-validator.js). browser extensions forbid eval
+// Ajv's normal runtime compilation uses new Function, therefore ready-made validation function is imported instead of compiling the schema here.
 import validateManifestStructure from "./manifest-validator.js";
 
 const input = document.getElementById("input");
@@ -12,7 +11,7 @@ document.getElementById("validate").addEventListener("click", () => {
   render(validate(input.value));
 });
 
-// Runs Layer 1 (well-formed JSON) then Layer 2 (IIIF Presentation 3.0 structure).
+// layer 1 check (well-formed JSON)
 function validate(text) {
   if (text.trim() === "") {
     return [
@@ -24,13 +23,17 @@ function validate(text) {
     ];
   }
 
-  // Layer 1: is it parseable JSON at all?
+  // layer 1: can JSON be parsed?
   let parsedManifest;
   try {
     parsedManifest = JSON.parse(text);
   } catch (error) {
     return [
-      { severity: "error", layer: 1, message: "Invalid JSON: " + error.message },
+      {
+        severity: "error",
+        layer: 1,
+        message: "Invalid JSON: " + error.message,
+      },
     ];
   }
 
@@ -38,7 +41,7 @@ function validate(text) {
     { severity: "ok", layer: 1, message: "Layer 1 passed - well-formed JSON." },
   ];
 
-  // Layer 2: does the parsed manifest match the IIIF Presentation 3.0 structure?
+  // layer 2: does the parsed manifest match the IIIF Presentation 3.0 structure?
   const matchesSchema = validateManifestStructure(parsedManifest);
   if (matchesSchema) {
     findings.push({
@@ -85,6 +88,18 @@ document.getElementById("load").addEventListener("click", async () => {
   } catch (err) {
     render([{ severity: "error", message: "Could not fetch: " + err.message }]);
   }
+});
+
+// choose local file input
+document.getElementById("file").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file) {
+    return;
+  }
+  input.value = await file.text();
+  render([
+    { severity: "ok", message: `Loaded ${file.name} - now click Validate.` },
+  ]);
 });
 
 // shared renderer
