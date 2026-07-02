@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    // modern output; Vite/esbuild transpiles the actual bundle, so tsc only checks.
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+
+    // the workbench runs in a browser tab, so it needs the DOM type definitions.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    // the whole point of this step: turn on every safety check TypeScript offers.
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    // esbuild compiles each file on its own, so forbid constructs that need
+    // whole-program knowledge (keeps tsc and the Vite build in agreement).
+    "isolatedModules": true,
+
+    // tsc is only a checker here; it emits nothing. `npm run typecheck` = tsc --noEmit.
+    "noEmit": true,
+
+    // don't type-check inside dependencies' .d.ts files.
+    "skipLibCheck": true
+  },
+  "include": [
+    "main.ts",
+    "App.svelte",
+    "validate.ts",
+    "findingMarkers.ts",
+    "manifest-validator.d.ts"
+  ]
+}
