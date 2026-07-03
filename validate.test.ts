@@ -12,6 +12,10 @@ function cleanManifest(): Record<string, unknown> {
     label: { en: ["Clean example"] },
     thumbnail: [{ id: "https://example.org/thumb.jpg", type: "Image" }],
     metadata: [{ label: { en: ["Date"] }, value: { en: ["1900"] } }],
+    rights: "http://creativecommons.org/publicdomain/zero/1.0/",
+    provider: [
+      { id: "https://example.org/about", type: "Agent", label: { en: ["Example Org"] } },
+    ],
     items: [
       {
         id: "https://example.org/canvas/1",
@@ -75,14 +79,17 @@ describe("layer 2 - IIIF structure", () => {
     expect(rootErrors[0].message).toContain("'id'");
   });
 
-  test("a canvas without dimensions or duration is flagged at its path", () => {
+  test("a canvas without dimensions or duration collapses to one readable error", () => {
     const manifest = cleanManifest();
     manifest.items = [{ id: "https://example.org/canvas/1", type: "Canvas" }];
     const findings = validate(JSON.stringify(manifest));
     const canvasErrors = errors(findings).filter((finding) =>
       finding.pointer?.startsWith("/items/0"),
     );
-    expect(canvasErrors.length).toBeGreaterThan(0);
+    // Ajv's raw output is four errors (three required + one anyOf); the anyOf branch
+    // noise is collapsed into a single finding that names the alternatives.
+    expect(canvasErrors).toHaveLength(1);
+    expect(canvasErrors[0].message).toContain("must have height + width, or duration");
   });
 
   test("L4 lint does not run when L2 fails", () => {
@@ -98,7 +105,7 @@ describe("layer 4 - best-practice lint", () => {
     expect(warnings(findings)).toHaveLength(0);
   });
 
-  test("all five lint rules fire on a worst-practice manifest", () => {
+  test("all lint rules fire on a worst-practice manifest", () => {
     const manifest = {
       "@context": "http://iiif.io/api/presentation/3/context.json",
       id: "http://example.org/manifest",
@@ -115,11 +122,21 @@ describe("layer 4 - best-practice lint", () => {
     };
     const findings = validate(JSON.stringify(manifest));
     const messages = warnings(findings).map((finding) => finding.message);
-    expect(messages).toHaveLength(5);
+    expect(messages).toHaveLength(7);
     expect(messages.join("\n")).toContain("https is recommended");
     expect(messages.join("\n")).toContain('label uses "none"');
     expect(messages.join("\n")).toContain("no thumbnail");
     expect(messages.join("\n")).toContain("no metadata");
+    expect(messages.join("\n")).toContain("no rights or requiredStatement");
+    expect(messages.join("\n")).toContain("no provider");
     expect(messages.join("\n")).toContain("have no label");
+  });
+
+  test("an empty items array warns about having no canvases", () => {
+    const manifest = { ...cleanManifest(), items: [] };
+    const findings = validate(JSON.stringify(manifest));
+    const messages = warnings(findings).map((finding) => finding.message);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain("no canvases");
   });
 });

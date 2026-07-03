@@ -9,10 +9,16 @@
 // `errors` property) is Ajv's stable standalone contract, so this file is
 // hand-maintained and committed even though the .js it describes is generated.
 
-// one problem Ajv found, trimmed to the two fields the workbench actually reads.
+// one problem Ajv found, trimmed to the fields the workbench actually reads.
 export interface ValidationError {
   // JSON Pointer to the offending value, e.g. "/items/0/type" ("" means the root).
   instancePath: string;
+  // JSON Pointer into the schema that failed, e.g. "#/definitions/canvas/anyOf/0/required".
+  schemaPath: string;
+  // the failed schema keyword, e.g. "required", "type", "anyOf".
+  keyword: string;
+  // keyword-specific details; only missingProperty (from "required") is used here.
+  params?: { missingProperty?: string };
   message?: string;
 }
 

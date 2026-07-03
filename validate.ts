@@ -6,7 +6,9 @@
 // (see scripts/build-validator.js). browser extensions forbid eval, and Ajv's
 // normal runtime compilation uses new Function, so the ready-made validation
 // function is imported here instead of compiling the schema at runtime.
-import validateManifestStructure from "./manifest-validator.js";
+import validateManifestStructure, {
+  type ValidationError,
+} from "./manifest-validator.js";
 
 // the one shape the whole app agrees on: validation produces a list of findings,
 // and the UI is purely a rendering of that list.
@@ -64,7 +66,7 @@ export function validate(text: string): Finding[] {
     // layer 4: best-practice lint only makes sense once the structure is valid.
     findings.push(...lintBestPractices(parsedManifest));
   } else {
-    for (const schemaError of validateManifestStructure.errors ?? []) {
+    for (const schemaError of collapseAnyOfNoise(validateManifestStructure.errors ?? [])) {
       const location = schemaError.instancePath || "(root)";
       findings.push({
         severity: "error",
@@ -76,6 +78,44 @@ export function validate(text: string): Finding[] {
   }
 
   return findings;
+}
+
+// Ajv reports an anyOf failure as every branch's individual errors plus a generic
+// "must match a schema in anyOf" — so one canvas missing its dimensions becomes four
+// findings. drop the branch errors and spell the alternatives out in the anyOf error
+// instead (e.g. "must have height + width, or duration").
+function collapseAnyOfNoise(errors: ValidationError[]): ValidationError[] {
+  const branchErrors = errors.filter((error) => error.schemaPath.includes("/anyOf/"));
+  const keptErrors = errors.filter((error) => !error.schemaPath.includes("/anyOf/"));
+
+  return keptErrors.map((error) => {
+    if (error.keyword !== "anyOf") {
+      return error;
+    }
+    // group the dropped errors' missing properties by which alternative they belong to.
+    const missingByBranch = new Map<string, string[]>();
+    for (const branch of branchErrors) {
+      if (branch.instancePath !== error.instancePath) {
+        continue;
+      }
+      const branchIndex = branch.schemaPath.match(/\/anyOf\/(\d+)\//)?.[1];
+      const missingProperty = branch.params?.missingProperty;
+      if (branchIndex === undefined || missingProperty === undefined) {
+        continue;
+      }
+      missingByBranch.set(branchIndex, [
+        ...(missingByBranch.get(branchIndex) ?? []),
+        missingProperty,
+      ]);
+    }
+    if (missingByBranch.size === 0) {
+      return error;
+    }
+    const alternatives = [...missingByBranch.values()]
+      .map((properties) => properties.join(" + "))
+      .join(", or ");
+    return { ...error, message: `must have ${alternatives}` };
+  });
 }
 
 // layer 4: things that are valid but not recommended by the IIIF spec. warnings, not
@@ -105,7 +145,24 @@ function lintBestPractices(manifest: unknown): Finding[] {
     warnings.push(warn("Manifest has no metadata; descriptive metadata is recommended."));
   }
 
+  if (manifest.rights === undefined && manifest.requiredStatement === undefined) {
+    warnings.push(
+      warn(
+        "Manifest has no rights or requiredStatement; licensing/attribution info is recommended.",
+      ),
+    );
+  }
+
+  if (manifest.provider === undefined) {
+    warnings.push(
+      warn("Manifest has no provider; naming the publishing institution is recommended."),
+    );
+  }
+
   if (Array.isArray(manifest.items)) {
+    if (manifest.items.length === 0) {
+      warnings.push(warn("Manifest has no canvases (items is empty)."));
+    }
     const unlabeled = manifest.items.filter(
       (item) => isRecord(item) && item.label === undefined,
     ).length;
