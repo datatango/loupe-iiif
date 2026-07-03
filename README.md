@@ -1,31 +1,23 @@
 # Loupe
 
-A browser extension that validates [IIIF](https://iiif.io) **Presentation API** manifests — a linter for the people who author and hand-craft them, not a pass/fail gate.
+Loupe is a browser extension that checks and validates **[IIIF](https://iiif.io) manifests**: the JSON files that tell image viewers how to present digitized objects (books, artworks, maps, scores) and where to find their images.
 
-Loupe turns a raw manifest (pasted, fetched from a URL, or opened from a file) into a readable, layered validation report. Everything runs **client-side**: nothing you load is ever sent to a server, which matters when you're working with unpublished collection data.
+IIIF manifests can break in ways that are hard to spot: a missing comma, a misspelled field, an image URL that quietly 404s. Loupe identifies and flags these issues all in your browser.
 
-> Status: **early and in active development.** Layers 1 and 2 (below) are working today; the richer authoring experience (code view, outline, link checking) is on the roadmap.
+**How it works:** paste a manifest, load it from a URL, or open a file. It appears in a code editor, and Loupe checks it as you type. Problems are underlined where they occur and listed in a report; click any finding to jump to the exact spot in the JSON.
 
-## Why
+**What it checks**, in order: is it valid JSON → does it match the [IIIF Presentation API 3.0](https://iiif.io/api/presentation/3.0/) structure → do the URLs it references actually resolve → does it follow best practices (rights, labels, thumbnails).
 
-Validators already exist (the official IIIF validators, for one). Loupe's aim isn't the check — it's the **authoring experience**:
+## The layers
 
-- **Readable errors** — plain language and the JSON path, not raw schema internals.
-- **Client-side and private** — no backend; collection data never leaves your browser.
-- **An extension, not a web app** — so it can make cross-origin requests a page can't (the basis for link checking).
+The extension has four layers of checks.
 
-## The layered validation model
-
-Every finding is tagged with the layer it came from, because a 404 and a missing property are different kinds of problem.
-
-| Layer | Question | Status |
+| Tag | Layer | Question |
 |---|---|---|
-| 1. Well-formedness | Is it parseable JSON? | ✅ |
-| 2. Spec conformance | Does it match the Presentation API 3.0 structure? | ✅ |
-| 3. Linking | Do referenced URLs resolve? | planned |
-| 4. Best-practice lint | Valid, but ill-advised? | planned |
-
-Validation produces a list of findings with a consistent shape (`{ severity, layer, message }`); the UI is purely a rendering of that list.
+| `[L1]` | Well-formedness | Is it parseable JSON? |
+| `[L2]` | Spec conformance | Does it match the Presentation API 3.0 structure? |
+| `[L3]` | Linking | Do referenced URLs resolve? |
+| `[L4]` | Best-practice lint | Valid, but ill-advised? |
 
 ## Install (from source)
 
@@ -33,13 +25,14 @@ Loupe isn't in the extension stores yet. To run it:
 
 ```sh
 npm install
-npm run build      # builds the extension into dist/
+npm run build            # Chrome build → dist/
+npm run build:firefox    # Firefox build → dist/
 ```
 
 Then load `dist/` as an unpacked extension:
 
 - **Chrome:** `chrome://extensions` → enable Developer mode → *Load unpacked* → select `dist/`.
-- **Firefox:** `about:debugging` → This Firefox → *Load Temporary Add-on* → select a file in `dist/`.
+- **Firefox:** `about:debugging` → This Firefox → *Load Temporary Add-on* → select `dist/manifest.json`, then grant host permissions in `about:addons` → Loupe → Permissions (needed for URL loading and link checking).
 
 Click the toolbar icon to open the workbench in a full tab.
 
@@ -49,7 +42,12 @@ Click the toolbar icon to open the workbench in a full tab.
 npm run dev        # watch + auto-reload in a dev browser
 ```
 
-Tech: **Manifest V3**, **Vite** (`vite-plugin-web-extension`), and **Ajv** for JSON Schema validation. Because MV3's content-security policy forbids `eval`, the IIIF schema is **precompiled to a standalone, eval-free validator at build time** (`scripts/build-validator.js`) rather than compiled in the browser.
+Note: **Manifest V3**, **TypeScript**, **Svelte 5**, **CodeMirror 6**, **Vite** (`vite-plugin-web-extension`), and **Ajv** for JSON Schema validation. Because MV3's content-security policy forbids `eval`, the IIIF schema is **precompiled to a standalone, eval-free validator at build time** (`scripts/build-validator.js`) rather than compiled in the browser.
+
+```sh
+npm test           # vitest suite for the validation logic
+npm run typecheck  # svelte-check
+```
 
 ## License
 
