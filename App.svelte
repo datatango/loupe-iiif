@@ -615,7 +615,9 @@
     align-items: flex-start;
     gap: 6px;
     margin: 8px 0;
-    padding: 10px 12px;
+    /* Courier Prime hangs its glyphs high in the line box, leaving ~1px more space
+       below the ink than above; the uneven vertical padding compensates (measured). */
+    padding: 10px 12px 9px;
     border-radius: 4px;
     font-family: "Courier Prime", monospace;
     font-size: 13px;
