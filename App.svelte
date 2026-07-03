@@ -5,13 +5,16 @@
   import { EditorView, basicSetup } from "codemirror";
   import { EditorState } from "@codemirror/state";
   import { json } from "@codemirror/lang-json";
-  import { parseTree, findNodeAtLocation } from "jsonc-parser";
+  import { parseTree, findNodeAtLocation, type Node } from "jsonc-parser";
   import { validate, validateLinks, type Finding, type Severity } from "./validate";
   import { findingMarkers, setMarkers, type MarkerRange } from "./findingMarkers";
 
   let manifestText = $state("");
   let urlText = $state("");
   let findings = $state<Finding[]>([]);
+  // true while a fetch is in flight (Load / Check Links). guards against overlapping
+  // runs racing to overwrite findings, and disables the action buttons meanwhile.
+  let busy = $state(false);
 
   const countBySeverity = (severity: Severity) =>
     findings.filter((finding) => finding.severity === severity).length;
@@ -115,21 +118,26 @@
   // layer 3 is network-bound and its findings have no source location, so clear the
   // editor markers and show progress while the fetches run.
   async function handleCheckLinks() {
-    editorView?.dispatch({ effects: setMarkers.of([]) });
-    findings = [{ severity: "ok", layer: 3, message: "Checking links…" }];
-    findings = await validateLinks(manifestText);
+    if (busy) {
+      return;
+    }
+    busy = true;
+    try {
+      editorView?.dispatch({ effects: setMarkers.of([]) });
+      findings = [{ severity: "ok", layer: 3, message: "Checking links…" }];
+      findings = await validateLinks(manifestText);
+    } finally {
+      busy = false;
+    }
   }
 
   // resolve a finding's JSON Pointer to a source range — the bridge between "where the
   // spec says the problem is" (a pointer) and "where that is in the text" (an offset),
-  // using the positions jsonc-parser retains but JSON.parse drops. returns undefined only
-  // when there is no node to point at (e.g. a stale pointer that no longer matches the
-  // current text). shared by the marker dispatch and click-to-jump so both agree.
-  function resolvePointerRange(text: string, pointer: string): MarkerRange | undefined {
-    const tree = parseTree(text);
-    if (tree === undefined) {
-      return undefined;
-    }
+  // using the positions jsonc-parser retains but JSON.parse drops. takes an already-parsed
+  // tree so callers with many findings parse the document once, not once per finding.
+  // returns undefined when there is no node to point at (e.g. a stale pointer that no
+  // longer matches the current text). shared by markers and click-to-jump so both agree.
+  function resolvePointerRange(tree: Node, pointer: string): MarkerRange | undefined {
     const node = findNodeAtLocation(tree, jsonPointerToPath(pointer));
     if (node === undefined) {
       return undefined;
@@ -144,6 +152,10 @@
   }
 
   function computeMarkerRanges(findings: Finding[], text: string): MarkerRange[] {
+    const tree = parseTree(text);
+    if (tree === undefined) {
+      return [];
+    }
     const ranges: MarkerRange[] = [];
     for (const finding of findings) {
       // Layer-2 errors always carry a pointer (possibly "" for root errors); L1 errors
@@ -151,7 +163,7 @@
       if (finding.severity !== "error" || finding.pointer === undefined) {
         continue;
       }
-      const range = resolvePointerRange(text, finding.pointer);
+      const range = resolvePointerRange(tree, finding.pointer);
       if (range !== undefined) {
         ranges.push(range);
       }
@@ -170,7 +182,11 @@
     if (editorView === undefined || finding.pointer === undefined) {
       return;
     }
-    const range = resolvePointerRange(manifestText, finding.pointer);
+    const tree = parseTree(manifestText);
+    if (tree === undefined) {
+      return;
+    }
+    const range = resolvePointerRange(tree, finding.pointer);
     if (range === undefined) {
       return;
     }
@@ -197,6 +213,11 @@
       findings = [{ severity: "error", message: "Enter a manifest URL first." }];
       return;
     }
+    if (busy) {
+      return;
+    }
+    busy = true;
+    findings = [{ severity: "ok", message: `Loading ${url}…` }];
     try {
       const response = await fetch(url);
       if (!response.ok) {
@@ -213,6 +234,8 @@
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       findings = [{ severity: "error", message: "Could not fetch: " + reason }];
+    } finally {
+      busy = false;
     }
   }
 
@@ -222,7 +245,10 @@
     if (!file) {
       return;
     }
-    setManifestText(formatToCurrent(await file.text()));
+    const text = await file.text();
+    // clear the input so choosing the same file again still fires this change handler.
+    fileInput.value = "";
+    setManifestText(formatToCurrent(text));
     findings = [{ severity: "ok", message: `Loaded ${file.name} - now click Validate.` }];
   }
 </script>
@@ -269,7 +295,7 @@
 
   <div class="url-row">
     <input type="url" placeholder="https://.../manifest URL" bind:value={urlText} />
-    <button onclick={handleLoadUrl}>Load</button>
+    <button onclick={handleLoadUrl} disabled={busy}>Load</button>
   </div>
 
   <div class="file-row">
@@ -278,8 +304,10 @@
   </div>
 
   <div class="actions">
-    <button onclick={handleValidate}>Validate</button>
-    <button onclick={handleCheckLinks}>Check Links</button>
+    <button onclick={handleValidate} disabled={busy}>Validate</button>
+    <button onclick={handleCheckLinks} disabled={busy}>
+      {busy ? "Checking…" : "Check Links"}
+    </button>
     <label class="toggle">
       <input type="checkbox" bind:checked={pretty} onchange={applyFormat} />
       Pretty-print
@@ -289,7 +317,8 @@
   <div class="panes">
     <div class="editor" use:mountEditor></div>
 
-    <div class="report">
+    <!-- polite live region so screen readers announce new findings without interrupting -->
+    <div class="report" aria-live="polite">
       {#if findings.length > 0}
         <div class="report-summary">
           <span class="error">{@render severityIcon("error")} {errorCount}</span>
@@ -554,6 +583,13 @@
   }
   button:hover {
     background: var(--iiif-blue-dark);
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  button:disabled:hover {
+    background: var(--iiif-blue);
   }
   .finding {
     display: flex;

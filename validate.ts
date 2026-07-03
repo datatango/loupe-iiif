@@ -172,7 +172,10 @@ function collectResourceUrls(manifest: unknown): string[] {
 // returns a finding on failure, undefined on success.
 async function checkUrl(url: string): Promise<Finding | undefined> {
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    // the status line is all we need — cancel the body so the browser doesn't
+    // download entire images/videos just to prove they exist.
+    void response.body?.cancel();
     if (!response.ok) {
       return {
         severity: "error",
@@ -182,7 +185,12 @@ async function checkUrl(url: string): Promise<Finding | undefined> {
     }
     return undefined;
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
+    const timedOut = error instanceof DOMException && error.name === "TimeoutError";
+    const reason = timedOut
+      ? "timed out after 10s"
+      : error instanceof Error
+        ? error.message
+        : String(error);
     return { severity: "error", layer: 3, message: `Unreachable (${reason}) - ${url}` };
   }
 }
