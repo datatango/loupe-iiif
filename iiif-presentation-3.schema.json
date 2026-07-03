@@ -6,10 +6,16 @@
   "required": ["@context", "id", "type", "label", "items"],
   "properties": {
     "@context": {
-      "description": "Must reference the IIIF Presentation 3 context; may be a single string or an array of strings.",
+      "description": "Must be the IIIF Presentation 3 context URI, or an array of strings containing it (the spec requires it as the last item; position is not checked here).",
       "oneOf": [
-        { "type": "string" },
-        { "type": "array", "items": { "type": "string" } }
+        { "const": "http://iiif.io/api/presentation/3/context.json" },
+        {
+          "type": "array",
+          "items": { "type": "string" },
+          "contains": {
+            "const": "http://iiif.io/api/presentation/3/context.json"
+          }
+        }
       ]
     },
     "id": {
@@ -22,8 +28,9 @@
     },
     "label": { "$ref": "#/definitions/languageMap" },
     "items": {
-      "description": "The list of Canvases that make up the Manifest.",
+      "description": "The list of Canvases that make up the Manifest; the spec requires at least one.",
       "type": "array",
+      "minItems": 1,
       "items": { "$ref": "#/definitions/canvas" }
     }
   },
@@ -42,7 +49,11 @@
       "type": "object",
       "required": ["id", "type"],
       "properties": {
-        "id": { "type": "string" },
+        "id": {
+          "description": "The spec requires an HTTP(S) URI without a fragment (#...).",
+          "type": "string",
+          "pattern": "^https?://[^#]*$"
+        },
         "type": { "const": "Canvas" },
         "label": { "$ref": "#/definitions/languageMap" },
         "height": { "type": "integer", "minimum": 1 },

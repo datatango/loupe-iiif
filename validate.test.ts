@@ -10,6 +10,7 @@ function cleanManifest(): Record<string, unknown> {
     id: "https://example.org/manifest",
     type: "Manifest",
     label: { en: ["Clean example"] },
+    summary: { en: ["A clean example manifest."] },
     thumbnail: [{ id: "https://example.org/thumb.jpg", type: "Image" }],
     metadata: [{ label: { en: ["Date"] }, value: { en: ["1900"] } }],
     rights: "http://creativecommons.org/publicdomain/zero/1.0/",
@@ -23,6 +24,7 @@ function cleanManifest(): Record<string, unknown> {
         label: { en: ["Page 1"] },
         height: 100,
         width: 100,
+        items: [{ id: "https://example.org/page/1", type: "AnnotationPage" }],
       },
     ],
   };
@@ -97,6 +99,34 @@ describe("layer 2 - IIIF structure", () => {
     const findings = validate(JSON.stringify(manifest));
     expect(warnings(findings)).toHaveLength(0);
   });
+
+  test("an empty items array is a spec violation, not a warning", () => {
+    const manifest = { ...cleanManifest(), items: [] };
+    const findings = validate(JSON.stringify(manifest));
+    const itemErrors = errors(findings).filter((finding) => finding.pointer === "/items");
+    expect(itemErrors).toHaveLength(1);
+    expect(itemErrors[0].message).toContain("fewer than 1 items");
+  });
+
+  test("an @context without the Presentation 3 URI is rejected", () => {
+    const manifest = { ...cleanManifest(), "@context": "http://example.org/wrong.json" };
+    const findings = validate(JSON.stringify(manifest));
+    const contextErrors = errors(findings).filter(
+      (finding) => finding.pointer === "/@context",
+    );
+    expect(contextErrors.length).toBeGreaterThan(0);
+  });
+
+  test("a canvas id with a fragment is rejected", () => {
+    const manifest = cleanManifest();
+    const canvas = (manifest.items as Record<string, unknown>[])[0];
+    canvas.id = "https://example.org/canvas/1#fragment";
+    const findings = validate(JSON.stringify(manifest));
+    const idErrors = errors(findings).filter(
+      (finding) => finding.pointer === "/items/0/id",
+    );
+    expect(idErrors).toHaveLength(1);
+  });
 });
 
 describe("layer 4 - best-practice lint", () => {
@@ -122,21 +152,15 @@ describe("layer 4 - best-practice lint", () => {
     };
     const findings = validate(JSON.stringify(manifest));
     const messages = warnings(findings).map((finding) => finding.message);
-    expect(messages).toHaveLength(7);
+    expect(messages).toHaveLength(9);
     expect(messages.join("\n")).toContain("https is recommended");
     expect(messages.join("\n")).toContain('label uses "none"');
+    expect(messages.join("\n")).toContain("no summary");
     expect(messages.join("\n")).toContain("no thumbnail");
     expect(messages.join("\n")).toContain("no metadata");
     expect(messages.join("\n")).toContain("no rights or requiredStatement");
     expect(messages.join("\n")).toContain("no provider");
     expect(messages.join("\n")).toContain("have no label");
-  });
-
-  test("an empty items array warns about having no canvases", () => {
-    const manifest = { ...cleanManifest(), items: [] };
-    const findings = validate(JSON.stringify(manifest));
-    const messages = warnings(findings).map((finding) => finding.message);
-    expect(messages).toHaveLength(1);
-    expect(messages[0]).toContain("no canvases");
+    expect(messages.join("\n")).toContain("have no content");
   });
 });

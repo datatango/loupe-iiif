@@ -80,16 +80,19 @@ export function validate(text: string): Finding[] {
   return findings;
 }
 
-// Ajv reports an anyOf failure as every branch's individual errors plus a generic
+// Ajv reports an anyOf/oneOf failure as every branch's individual errors plus a generic
 // "must match a schema in anyOf" — so one canvas missing its dimensions becomes four
-// findings. drop the branch errors and spell the alternatives out in the anyOf error
-// instead (e.g. "must have height + width, or duration").
+// findings. drop the branch errors and, where the branches were required-property
+// alternatives, spell them out in the surviving error (e.g. "must have height + width,
+// or duration").
+const branchKeywordPattern = /\/(anyOf|oneOf)\//;
+
 function collapseAnyOfNoise(errors: ValidationError[]): ValidationError[] {
-  const branchErrors = errors.filter((error) => error.schemaPath.includes("/anyOf/"));
-  const keptErrors = errors.filter((error) => !error.schemaPath.includes("/anyOf/"));
+  const branchErrors = errors.filter((error) => branchKeywordPattern.test(error.schemaPath));
+  const keptErrors = errors.filter((error) => !branchKeywordPattern.test(error.schemaPath));
 
   return keptErrors.map((error) => {
-    if (error.keyword !== "anyOf") {
+    if (error.keyword !== "anyOf" && error.keyword !== "oneOf") {
       return error;
     }
     // group the dropped errors' missing properties by which alternative they belong to.
@@ -98,7 +101,7 @@ function collapseAnyOfNoise(errors: ValidationError[]): ValidationError[] {
       if (branch.instancePath !== error.instancePath) {
         continue;
       }
-      const branchIndex = branch.schemaPath.match(/\/anyOf\/(\d+)\//)?.[1];
+      const branchIndex = branch.schemaPath.match(/\/(?:anyOf|oneOf)\/(\d+)\//)?.[1];
       const missingProperty = branch.params?.missingProperty;
       if (branchIndex === undefined || missingProperty === undefined) {
         continue;
@@ -133,8 +136,14 @@ function lintBestPractices(manifest: unknown): Finding[] {
 
   if (isRecord(manifest.label) && "none" in manifest.label) {
     warnings.push(
-      warn('Manifest label uses "none"; a BCP-47 language code (e.g. "en") is recommended.'),
+      warn(
+        'Manifest label uses "none"; use a BCP-47 language code (e.g. "en") if the language is known.',
+      ),
     );
+  }
+
+  if (manifest.summary === undefined) {
+    warnings.push(warn("Manifest has no summary; a short description is recommended."));
   }
 
   if (manifest.thumbnail === undefined) {
@@ -148,7 +157,7 @@ function lintBestPractices(manifest: unknown): Finding[] {
   if (manifest.rights === undefined && manifest.requiredStatement === undefined) {
     warnings.push(
       warn(
-        "Manifest has no rights or requiredStatement; licensing/attribution info is recommended.",
+        "Manifest has no rights or requiredStatement; consider adding licensing/attribution info (optional per spec).",
       ),
     );
   }
@@ -160,14 +169,24 @@ function lintBestPractices(manifest: unknown): Finding[] {
   }
 
   if (Array.isArray(manifest.items)) {
-    if (manifest.items.length === 0) {
-      warnings.push(warn("Manifest has no canvases (items is empty)."));
-    }
+    // an empty items array is a spec violation and is caught by the schema (minItems),
+    // so the lint rules here only look at the canvases that exist.
     const unlabeled = manifest.items.filter(
       (item) => isRecord(item) && item.label === undefined,
     ).length;
     if (unlabeled > 0) {
       warnings.push(warn(`${unlabeled} canvas(es) have no label; labels are recommended.`));
+    }
+
+    const withoutContent = manifest.items.filter(
+      (item) => isRecord(item) && (!Array.isArray(item.items) || item.items.length === 0),
+    ).length;
+    if (withoutContent > 0) {
+      warnings.push(
+        warn(
+          `${withoutContent} canvas(es) have no content (items); each canvas should have at least one annotation page.`,
+        ),
+      );
     }
   }
 
