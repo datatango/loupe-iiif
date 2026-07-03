@@ -46,6 +46,7 @@
               if (update.transactions.some((tr) => tr.isUserEvent("input.paste"))) {
                 queueMicrotask(formatOnPaste);
               }
+              scheduleAutoValidate();
             }
           }),
         ],
@@ -54,10 +55,25 @@
 
     return {
       destroy() {
+        clearTimeout(autoValidateTimer);
         editorView?.destroy();
         editorView = undefined;
       },
     };
+  }
+
+  // validate-as-you-type: re-run validation shortly after the user stops editing, so
+  // findings and markers stay current without clicking Validate. skipped while a link
+  // check is in flight (its results shouldn't be overwritten mid-run) and for an empty
+  // document (a "nothing to validate" error while clearing the editor is just noise).
+  let autoValidateTimer: ReturnType<typeof setTimeout> | undefined;
+  function scheduleAutoValidate() {
+    clearTimeout(autoValidateTimer);
+    autoValidateTimer = setTimeout(() => {
+      if (!busy && manifestText.trim() !== "") {
+        handleValidate();
+      }
+    }, 500);
   }
 
   // state → editor: replace the whole document when text arrives from elsewhere
@@ -115,8 +131,8 @@
     });
   }
 
-  // layer 3 is network-bound and its findings have no source location, so clear the
-  // editor markers and show progress while the fetches run.
+  // layer 3 is network-bound, so clear the editor markers and show progress while the
+  // fetches run; dead links come back with pointers, so they get markers like L2 errors.
   async function handleCheckLinks() {
     if (busy) {
       return;
@@ -126,6 +142,9 @@
       editorView?.dispatch({ effects: setMarkers.of([]) });
       findings = [{ severity: "ok", layer: 3, message: "Checking links…" }];
       findings = await validateLinks(manifestText);
+      editorView?.dispatch({
+        effects: setMarkers.of(computeMarkerRanges(findings, manifestText)),
+      });
     } finally {
       busy = false;
     }

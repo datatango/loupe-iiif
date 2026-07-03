@@ -133,44 +133,51 @@ function isHttpUrl(value: string): boolean {
   return value.startsWith("http://") || value.startsWith("https://");
 }
 
-// collect the http(s) URLs worth fetching: the manifest's own id plus every nested
-// content resource id. deduped.
-function collectResourceUrls(manifest: unknown): string[] {
-  const urls = new Set<string>();
+// a path segment escaped per the JSON Pointer spec: "~" → "~0", "/" → "~1".
+function escapePointerSegment(segment: string | number): string {
+  return String(segment).replace(/~/g, "~0").replace(/\//g, "~1");
+}
 
-  if (isRecord(manifest) && typeof manifest.id === "string" && isHttpUrl(manifest.id)) {
-    urls.add(manifest.id);
-  }
+// collect the http(s) URLs worth fetching — the manifest's own id plus every nested
+// content resource id — each mapped to the JSON Pointer of the id that referenced it,
+// so a dead link can be marked and jumped to in the editor. deduped (first wins).
+function collectResourceUrls(manifest: unknown): Map<string, string> {
+  const urlToPointer = new Map<string, string>();
 
-  function walk(value: unknown): void {
+  function walk(value: unknown, path: (string | number)[]): void {
     if (Array.isArray(value)) {
-      for (const item of value) {
-        walk(item);
-      }
+      value.forEach((item, index) => walk(item, [...path, index]));
       return;
     }
     if (!isRecord(value)) {
       return;
     }
+    const isContentResource =
+      typeof value.type === "string" && contentResourceTypes.has(value.type);
+    const isManifestRoot = path.length === 0;
     if (
-      typeof value.type === "string" &&
-      contentResourceTypes.has(value.type) &&
+      (isContentResource || isManifestRoot) &&
       typeof value.id === "string" &&
-      isHttpUrl(value.id)
+      isHttpUrl(value.id) &&
+      !urlToPointer.has(value.id)
     ) {
-      urls.add(value.id);
+      const pointer = [...path, "id"]
+        .map((segment) => "/" + escapePointerSegment(segment))
+        .join("");
+      urlToPointer.set(value.id, pointer);
     }
     for (const key of Object.keys(value)) {
-      walk(value[key]);
+      walk(value[key], [...path, key]);
     }
   }
-  walk(manifest);
+  walk(manifest, []);
 
-  return [...urls];
+  return urlToPointer;
 }
 
-// returns a finding on failure, undefined on success.
-async function checkUrl(url: string): Promise<Finding | undefined> {
+// returns a finding on failure, undefined on success. the pointer locates the id that
+// referenced this URL, so the UI can mark and jump to dead links like schema errors.
+async function checkUrl(url: string, pointer: string): Promise<Finding | undefined> {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     // the status line is all we need — cancel the body so the browser doesn't
@@ -181,6 +188,7 @@ async function checkUrl(url: string): Promise<Finding | undefined> {
         severity: "error",
         layer: 3,
         message: `${response.status} ${response.statusText} - ${url}`,
+        pointer,
       };
     }
     return undefined;
@@ -191,7 +199,12 @@ async function checkUrl(url: string): Promise<Finding | undefined> {
       : error instanceof Error
         ? error.message
         : String(error);
-    return { severity: "error", layer: 3, message: `Unreachable (${reason}) - ${url}` };
+    return {
+      severity: "error",
+      layer: 3,
+      message: `Unreachable (${reason}) - ${url}`,
+      pointer,
+    };
   }
 }
 
@@ -207,7 +220,7 @@ export async function validateLinks(text: string): Promise<Finding[]> {
   }
 
   const urls = collectResourceUrls(manifest);
-  if (urls.length === 0) {
+  if (urls.size === 0) {
     return [
       { severity: "ok", layer: 3, message: "Layer 3: no resolvable resource URLs found." },
     ];
@@ -216,8 +229,8 @@ export async function validateLinks(text: string): Promise<Finding[]> {
   // ponytail: cap requests so a huge manifest can't fire hundreds at once; the summary
   // reports how many of the total were actually checked. raise if it proves too low.
   const maxUrls = 25;
-  const checked = urls.slice(0, maxUrls);
-  const results = await Promise.all(checked.map(checkUrl));
+  const checked = [...urls.entries()].slice(0, maxUrls);
+  const results = await Promise.all(checked.map(([url, pointer]) => checkUrl(url, pointer)));
   const failures = results.filter((finding): finding is Finding => finding !== undefined);
 
   const summary: Finding = {
@@ -225,8 +238,8 @@ export async function validateLinks(text: string): Promise<Finding[]> {
     layer: 3,
     message:
       failures.length > 0
-        ? `Layer 3: ${failures.length} of ${checked.length} checked failed (of ${urls.length} found).`
-        : `Layer 3 passed - ${checked.length} of ${urls.length} resource(s) resolved.`,
+        ? `Layer 3: ${failures.length} of ${checked.length} checked failed (of ${urls.size} found).`
+        : `Layer 3 passed - ${checked.length} of ${urls.size} resource(s) resolved.`,
   };
 
   return [summary, ...failures];

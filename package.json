@@ -9,7 +9,10 @@
     "dev": "vite",
     "prebuild": "npm run build:validator",
     "build": "vite build",
-    "typecheck": "svelte-check --tsconfig ./tsconfig.json"
+    "build:firefox": "TARGET=firefox npm run build",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json",
+    "pretest": "npm run build:validator",
+    "test": "vitest run"
   },
   "repository": {
     "type": "git",
@@ -29,7 +32,8 @@
     "svelte-check": "^4.7.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
-    "vite-plugin-web-extension": "^4.5.1"
+    "vite-plugin-web-extension": "^4.5.1",
+    "vitest": "^4.1.9"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",

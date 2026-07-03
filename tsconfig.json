@@ -27,6 +27,7 @@
     "main.ts",
     "App.svelte",
     "validate.ts",
+    "validate.test.ts",
     "findingMarkers.ts",
     "manifest-validator.d.ts"
   ]

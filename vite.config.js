@@ -8,6 +8,9 @@ export default defineConfig({
     webExtension({
       manifest: "manifest.json",
       additionalInputs: ["workbench.html"],
+      // resolves the {{chrome}}/{{firefox}} keys in manifest.json;
+      // TARGET=firefox npm run build produces the Firefox build.
+      browser: process.env.TARGET ?? "chrome",
     }),
   ],
 });
