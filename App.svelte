@@ -397,10 +397,19 @@
     border-radius: 4px;
     overflow: hidden;
   }
-  /* help button + hover/focus popover, pushed to the right of the header. */
+  /* help button + hover/focus popover, pushed to the right of the header. the
+     margin-right centers the 24px icon above the Load button below it (measured:
+     Load is ~66px wide against the same 24px page padding, so 66/2 - 12 ≈ 21). */
   .help {
     position: relative;
+    /* flex collapses the div to exactly the icon's box, so centering is true and
+       the popup (top: 100%) sits flush under the icon. */
+    display: flex;
     margin-left: auto;
+    margin-right: 21px;
+    /* the header aligns children on the text baseline; center the icon against
+       the "Loupe" wordmark's height instead. */
+    align-self: center;
   }
   .help-button {
     display: inline-flex;
@@ -436,7 +445,8 @@
     content: "";
     position: absolute;
     top: -7px;
-    right: 22px;
+    /* arrow center at 12px from the right edge = the center of the 24px icon above */
+    right: 6px;
     width: 12px;
     height: 12px;
     background: #fff;
