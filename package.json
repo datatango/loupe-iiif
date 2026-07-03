@@ -10,7 +10,7 @@
     "prebuild": "npm run build:validator",
     "build": "vite build",
     "build:firefox": "TARGET=firefox npm run build",
-    "build:icons": "for s in 16 48 128; do vips thumbnail assets/icon.svg public/icons/icon$s.png $s --height $s; done",
+    "build:icons": "for s in 16 32 48 64 96 128 256; do vips thumbnail assets/icon.svg public/icons/icon$s.png $s --height $s; done",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
     "pretest": "npm run build:validator",
     "test": "vitest run"
