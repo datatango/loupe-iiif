@@ -2,7 +2,7 @@
   "manifest_version": 3,
 
   "name": "Loupe - IIIF Presentation Validator",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Check and validate IIIF Presentation Manifests.",
   "icons": {
     "16": "icons/icon16.png",
