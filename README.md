@@ -1,5 +1,7 @@
 # Loupe
 
+![Loupe screenshot](assets/screenshot.png)
+
 Loupe is a browser extension that checks and validates **[IIIF](https://iiif.io) manifests**: the JSON files that tell viewers how to present digital objects (A/V, books, artworks, maps, scores) and where to find their media.
 
 IIIF manifests can break in ways that are hard to spot: a missing comma, a misspelled field, an image URL that quietly 404s. Loupe identifies and flags these issues, all in your browser.
@@ -12,12 +14,12 @@ IIIF manifests can break in ways that are hard to spot: a missing comma, a missp
 
 The extension has four layers of checks.
 
-| Tag | Layer | Question |
-|---|---|---|
-| `[L1]` | Well-formedness | Is it parseable JSON? |
-| `[L2]` | Spec conformance | Does it match the Presentation API 3.0 structure? |
-| `[L3]` | Linking | Do referenced URLs resolve? |
-| `[L4]` | Best-practice lint | Valid but ill-advised? |
+| Tag    | Layer              | Question                                          |
+| ------ | ------------------ | ------------------------------------------------- |
+| `[L1]` | Well-formedness    | Is it parseable JSON?                             |
+| `[L2]` | Spec conformance   | Does it match the Presentation API 3.0 structure? |
+| `[L3]` | Linking            | Do referenced URLs resolve?                       |
+| `[L4]` | Best-practice lint | Valid but ill-advised?                            |
 
 ## Install (from source)
 
@@ -31,8 +33,8 @@ npm run build:firefox    # Firefox build → dist/
 
 Then load `dist/` as an unpacked extension:
 
-- **Chrome:** `chrome://extensions` → enable Developer mode → *Load unpacked* → select `dist/`.
-- **Firefox:** `about:debugging` → This Firefox → *Load Temporary Add-on* → select `dist/manifest.json`, then grant host permissions in `about:addons` → Loupe → Permissions (needed for URL loading and link checking).
+- **Chrome:** `chrome://extensions` → enable Developer mode → _Load unpacked_ → select `dist/`.
+- **Firefox:** `about:debugging` → This Firefox → _Load Temporary Add-on_ → select `dist/manifest.json`, then grant host permissions in `about:addons` → Loupe → Permissions (needed for URL loading and link checking).
 
 Click the toolbar icon to open the workbench in a full tab.
 
