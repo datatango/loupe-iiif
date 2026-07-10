@@ -4,7 +4,7 @@
 
 Loupe is a browser extension that checks and validates **[IIIF](https://iiif.io) manifests**: the JSON files that tell viewers how to present digital objects (A/V, books, artworks, maps, scores) and where to find their media.
 
-IIIF manifests can break in ways that are hard to spot: a missing comma, a misspelled field, an image URL that quietly 404s. Loupe identifies and flags these issues, all in your browser.
+IIIF manifests can break in ways that are hard to spot: a missing comma, a misspelled field, an image URL that quietly 404s. Loupe identifies and flags these issues - all in your browser.
 
 **How it works:** paste a manifest, load it from a URL, or open a file. It appears in a code editor, and Loupe checks it as you type. Problems are underlined where they occur and listed in a report; click any finding to jump to the exact spot in the JSON.
 
