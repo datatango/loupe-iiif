@@ -8,4 +8,4 @@ any third party. The extension has no analytics, no tracking, and no
 accounts.
 
 If you have questions, open an issue at
-https://github.com/datatango/loupe/issues.
+https://github.com/datatango/loupe-iiif/issues.

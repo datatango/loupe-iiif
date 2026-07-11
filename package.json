@@ -19,16 +19,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/datatango/loupe.git"
+    "url": "git+https://github.com/datatango/loupe-iiif.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/datatango/loupe/issues"
+    "url": "https://github.com/datatango/loupe-iiif/issues"
   },
-  "homepage": "https://github.com/datatango/loupe#readme",
+  "homepage": "https://github.com/datatango/loupe-iiif#readme",
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "svelte": "^5.56.4",
