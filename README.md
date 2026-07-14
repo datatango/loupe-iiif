@@ -23,7 +23,7 @@ The extension has four layers of checks.
 
 ## Install (from source)
 
-Loupe isn't in the extension stores yet. To run it:
+Requires [Node.js](https://nodejs.org) 22 or later (any OS) with npm, bundled with Node. To build:
 
 ```sh
 npm install
