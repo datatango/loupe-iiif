@@ -1,6 +1,8 @@
 # dependencies
 node_modules/
 dist/
+dist-chrome/
+dist-firefox/
 
 # os / editor
 .DS_Store

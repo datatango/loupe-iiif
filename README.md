@@ -34,14 +34,18 @@ Requires [Node.js](https://nodejs.org) 22 or later (any OS) with npm, bundled wi
 
 ```sh
 npm install
-npm run build            # Chrome build → dist/
-npm run build:firefox    # Firefox build → dist/
+npm run build            # Chrome build → dist-chrome/
+npm run build:firefox    # Firefox build → dist-firefox/
 ```
 
-Then load `dist/` as an unpacked extension:
+Each target builds to its own directory - Chrome and Firefox need different `background`
+keys (`service_worker` vs `scripts`), so the two builds are never allowed to overwrite
+each other on disk.
 
-- **Chrome:** `chrome://extensions` → enable Developer mode → _Load unpacked_ → select `dist/`.
-- **Firefox:** `about:debugging` → This Firefox → _Load Temporary Add-on_ → select `dist/manifest.json`, then grant host permissions in `about:addons` → loupe-iiif → Permissions (needed for URL loading and link checking).
+Then load the matching directory as an unpacked extension:
+
+- **Chrome:** `chrome://extensions` → enable Developer mode → _Load unpacked_ → select `dist-chrome/`.
+- **Firefox:** `about:debugging` → This Firefox → _Load Temporary Add-on_ → select `dist-firefox/manifest.json`, then grant host permissions in `about:addons` → loupe-iiif → Permissions (needed for URL loading and link checking).
 
 Click the toolbar icon to open the workbench in a full tab.
 
