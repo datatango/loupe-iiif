@@ -23,6 +23,11 @@ The extension has four layers of checks.
 | `[L3]` | Linking            | Do referenced URLs resolve?                                |
 | `[L4]` | Best-practice lint | Valid but ill-advised?                                     |
 
+## Install
+
+- **Chrome:** [Chrome Web Store](https://chromewebstore.google.com/detail/loupe-iiif/bnnoohiohbljoianldgbnepljodndmdo)
+- **Firefox:** [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/loupe-iiif/)
+
 ## Install (from source)
 
 Requires [Node.js](https://nodejs.org) 22 or later (any OS) with npm, bundled with Node. To build:
