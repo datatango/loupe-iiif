@@ -30,6 +30,35 @@ function cleanManifest(): Record<string, unknown> {
   };
 }
 
+// a Presentation 2.1 manifest that passes L2 and trips none of the L4 lint rules.
+function cleanManifestV2(): Record<string, unknown> {
+  return {
+    "@context": "http://iiif.io/api/presentation/2/context.json",
+    "@id": "https://example.org/manifest",
+    "@type": "sc:Manifest",
+    label: "Clean example",
+    description: "A clean example manifest.",
+    thumbnail: { "@id": "https://example.org/thumb.jpg" },
+    metadata: [{ label: "Date", value: "1900" }],
+    license: "http://creativecommons.org/publicdomain/zero/1.0/",
+    sequences: [
+      {
+        "@type": "sc:Sequence",
+        canvases: [
+          {
+            "@id": "https://example.org/canvas/1",
+            "@type": "sc:Canvas",
+            label: "Page 1",
+            height: 100,
+            width: 100,
+            images: [{ "@id": "https://example.org/image/1" }],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function errors(findings: Finding[]): Finding[] {
   return findings.filter((finding) => finding.severity === "error");
 }
@@ -108,13 +137,14 @@ describe("layer 2 - IIIF structure", () => {
     expect(itemErrors[0].message).toContain("fewer than 1 items");
   });
 
-  test("an @context without the Presentation 3 URI is rejected", () => {
+  test("an @context that matches no supported version is rejected", () => {
     const manifest = { ...cleanManifest(), "@context": "http://example.org/wrong.json" };
     const findings = validate(JSON.stringify(manifest));
     const contextErrors = errors(findings).filter(
       (finding) => finding.pointer === "/@context",
     );
-    expect(contextErrors.length).toBeGreaterThan(0);
+    expect(contextErrors).toHaveLength(1);
+    expect(contextErrors[0].message).toContain("Presentation 2.1 and 3.0");
   });
 
   test("a canvas id with a fragment is rejected", () => {
@@ -161,6 +191,59 @@ describe("layer 4 - best-practice lint", () => {
     expect(messages.join("\n")).toContain("no rights or requiredStatement");
     expect(messages.join("\n")).toContain("no provider");
     expect(messages.join("\n")).toContain("have no label");
+    expect(messages.join("\n")).toContain("have no content");
+  });
+});
+
+describe("layer 2 - IIIF Presentation 2.1 structure", () => {
+  test("a clean Presentation 2 manifest passes L1 and L2 with no errors", () => {
+    const findings = validate(JSON.stringify(cleanManifestV2()));
+    expect(errors(findings)).toHaveLength(0);
+    const okLayers = findings
+      .filter((finding) => finding.severity === "ok")
+      .map((finding) => finding.layer);
+    expect(okLayers).toEqual([1, 2]);
+    expect(findings.find((finding) => finding.layer === 2)?.message).toContain(
+      "Presentation 2.1",
+    );
+  });
+
+  test("the legacy Shared Canvas context is also accepted as Presentation 2", () => {
+    const manifest = {
+      ...cleanManifestV2(),
+      "@context": "http://www.shared-canvas.org/ns/context.json",
+    };
+    const findings = validate(JSON.stringify(manifest));
+    expect(errors(findings)).toHaveLength(0);
+  });
+
+  test("a canvas missing height/width is a Layer 2 error", () => {
+    const manifest = cleanManifestV2();
+    const canvas = (manifest.sequences as Record<string, unknown>[])[0]
+      .canvases as Record<string, unknown>[];
+    delete canvas[0].height;
+    const findings = validate(JSON.stringify(manifest));
+    const canvasErrors = errors(findings).filter((finding) =>
+      finding.pointer?.startsWith("/sequences/0/canvases/0"),
+    );
+    expect(canvasErrors.length).toBeGreaterThan(0);
+  });
+
+  test("a Presentation 2 manifest with no content warns at L4", () => {
+    const manifest = cleanManifestV2();
+    const canvas = (manifest.sequences as Record<string, unknown>[])[0]
+      .canvases as Record<string, unknown>[];
+    delete canvas[0].images;
+    delete manifest.description;
+    delete manifest.thumbnail;
+    delete manifest.metadata;
+    delete manifest.license;
+    const findings = validate(JSON.stringify(manifest));
+    const messages = warnings(findings).map((finding) => finding.message);
+    expect(messages.join("\n")).toContain("no description");
+    expect(messages.join("\n")).toContain("no thumbnail");
+    expect(messages.join("\n")).toContain("no metadata");
+    expect(messages.join("\n")).toContain("no license or attribution");
     expect(messages.join("\n")).toContain("have no content");
   });
 });

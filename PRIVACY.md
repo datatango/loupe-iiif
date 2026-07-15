@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Loupe does not collect, store, or transmit any user data.
+loupe-iiif does not collect, store, or transmit any user data.
 
 Manifest URLs you enter are fetched directly from their host server and
 validated entirely in your browser. Nothing is sent to the developer or to

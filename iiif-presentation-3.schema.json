@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "iiif-presentation-3",
   "title": "IIIF Presentation 3.0 Manifest (minimal)",
   "description": "A minimal, growable schema for an IIIF Presentation API 3.0 Manifest. ponytail: validates the Manifest and one level down (Canvas); does NOT descend into AnnotationPage/Annotation/body, nor check metadata/thumbnail/provider. Add those levels when a real manifest needs them.",
   "type": "object",

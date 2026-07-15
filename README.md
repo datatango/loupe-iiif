@@ -1,25 +1,27 @@
-# Loupe
+# loupe-iiif
 
-![Loupe screenshot](assets/screenshot.png)
+![loupe-iiif screenshot](assets/screenshot.png)
 
-Loupe is a browser extension that checks and validates **[IIIF](https://iiif.io) manifests**: the JSON files that tell viewers how to present digital objects (A/V, books, artworks, maps, scores) and where to find their media.
+loupe-iiif is a browser extension that checks and validates **[IIIF](https://iiif.io) manifests**: the JSON files that tell viewers how to present digital objects (A/V, books, artworks, maps, scores) and where to find their media.
 
-IIIF manifests can break in ways that are hard to spot: a missing comma, a misspelled field, an image URL that quietly 404s. Loupe identifies and flags these issues - all in your browser.
+IIIF manifests can break in ways that are hard to spot: a missing comma, a misspelled field, an image URL that quietly 404s. loupe-iiif identifies and flags these issues - all in your browser.
 
-**How it works:** paste a manifest, load it from a URL, or open a file. It appears in a code editor, and Loupe checks it as you type. Problems are underlined where they occur and listed in a report; click any finding to jump to the exact spot in the JSON.
+**How it works:** paste a manifest, load it from a URL, or open a file. It appears in a code editor, and loupe-iiif checks it as you type. Problems are underlined where they occur and listed in a report; click any finding to jump to the exact spot in the JSON.
 
-**What it checks**, in order: is it valid JSON → does it match the [IIIF Presentation API 3.0](https://iiif.io/api/presentation/3.0/) structure → do the URLs it references actually resolve → does it follow best practices (rights, labels, thumbnails).
+**What it checks**, in order: is it valid JSON → does it match the [IIIF Presentation API](https://iiif.io/api/presentation/) structure for the version it declares → do the URLs it references actually resolve → does it follow best practices (rights, labels, thumbnails).
+
+loupe-iiif auto-detects the Presentation API version from a manifest's `@context` and validates against that version's rules. **Supported today: [2.1](https://iiif.io/api/presentation/2.0/) and [3.0](https://iiif.io/api/presentation/3.0/).** Presentation 4 is still a draft upstream; loupe-iiif will add support once its shape stabilizes. A manifest whose `@context` doesn't match a supported version gets a single clear error rather than a wall of unrelated schema failures.
 
 ## The layers
 
 The extension has four layers of checks.
 
-| Tag    | Layer              | Question                                          |
-| ------ | ------------------ | ------------------------------------------------- |
-| `[L1]` | Well-formedness    | Is it parseable JSON?                             |
-| `[L2]` | Spec conformance   | Does it match the Presentation API 3.0 structure? |
-| `[L3]` | Linking            | Do referenced URLs resolve?                       |
-| `[L4]` | Best-practice lint | Valid but ill-advised?                            |
+| Tag    | Layer              | Question                                                   |
+| ------ | ------------------ | ---------------------------------------------------------- |
+| `[L1]` | Well-formedness    | Is it parseable JSON?                                      |
+| `[L2]` | Spec conformance   | Does it match the Presentation API structure (2.1 or 3.0)? |
+| `[L3]` | Linking            | Do referenced URLs resolve?                                |
+| `[L4]` | Best-practice lint | Valid but ill-advised?                                     |
 
 ## Install (from source)
 
@@ -34,7 +36,7 @@ npm run build:firefox    # Firefox build → dist/
 Then load `dist/` as an unpacked extension:
 
 - **Chrome:** `chrome://extensions` → enable Developer mode → _Load unpacked_ → select `dist/`.
-- **Firefox:** `about:debugging` → This Firefox → _Load Temporary Add-on_ → select `dist/manifest.json`, then grant host permissions in `about:addons` → Loupe → Permissions (needed for URL loading and link checking).
+- **Firefox:** `about:debugging` → This Firefox → _Load Temporary Add-on_ → select `dist/manifest.json`, then grant host permissions in `about:addons` → loupe-iiif → Permissions (needed for URL loading and link checking).
 
 Click the toolbar icon to open the workbench in a full tab.
 

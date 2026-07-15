@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "iiif-presentation-2",
+  "title": "IIIF Presentation 2.1 Manifest (minimal)",
+  "description": "A minimal, growable schema for an IIIF Presentation API 2.1 Manifest. ponytail: validates the Manifest and two levels down (Sequence, Canvas); does NOT descend into AnnotationList/Annotation/resource, nor check metadata/thumbnail/attribution. Add those levels when a real manifest needs them. Also accepts the legacy Shared Canvas context, since real-world institutions (e.g. the Smithsonian) still publish it and it is structurally identical to Presentation 2.",
+  "type": "object",
+  "required": ["@context", "@id", "@type", "label", "sequences"],
+  "properties": {
+    "@context": {
+      "description": "Must be the IIIF Presentation 2 context URI or the legacy Shared Canvas context URI, or an array of strings containing one of them.",
+      "oneOf": [
+        { "const": "http://iiif.io/api/presentation/2/context.json" },
+        { "const": "http://www.shared-canvas.org/ns/context.json" },
+        {
+          "type": "array",
+          "items": { "type": "string" },
+          "contains": {
+            "enum": [
+              "http://iiif.io/api/presentation/2/context.json",
+              "http://www.shared-canvas.org/ns/context.json"
+            ]
+          }
+        }
+      ]
+    },
+    "@id": {
+      "description": "The URI that identifies this Manifest.",
+      "type": "string"
+    },
+    "@type": {
+      "description": "Must be the literal string 'sc:Manifest'.",
+      "const": "sc:Manifest"
+    },
+    "label": {
+      "description": "A human-readable label. Presentation 2 allows a plain string, or an array of strings/language-tagged value objects; unlike Presentation 3 there is no formal language-map requirement, so this is intentionally loose.",
+      "oneOf": [{ "type": "string" }, { "type": "array" }]
+    },
+    "sequences": {
+      "description": "The list of Sequences. Technically optional per spec, but required here since a manifest without one has no canvases to check.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/sequence" }
+    }
+  },
+  "definitions": {
+    "sequence": {
+      "description": "A Sequence: needs @type and at least one Canvas. @id is spec-optional ('a sequence may have an id') so it is not required here.",
+      "type": "object",
+      "required": ["@type", "canvases"],
+      "properties": {
+        "@id": { "type": "string" },
+        "@type": { "const": "sc:Sequence" },
+        "canvases": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/canvas" }
+        }
+      }
+    },
+    "canvas": {
+      "description": "A Canvas: needs @id, @type, label, height, and width - the spec requires height and width to be present.",
+      "type": "object",
+      "required": ["@id", "@type", "label", "height", "width"],
+      "properties": {
+        "@id": { "type": "string" },
+        "@type": { "const": "sc:Canvas" },
+        "label": { "oneOf": [{ "type": "string" }, { "type": "array" }] },
+        "height": { "type": "integer", "minimum": 1 },
+        "width": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

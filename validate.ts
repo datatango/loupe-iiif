@@ -6,7 +6,9 @@
 // (see scripts/build-validator.js). browser extensions forbid eval, and Ajv's
 // normal runtime compilation uses new Function, so the ready-made validation
 // function is imported here instead of compiling the schema at runtime.
-import validateManifestStructure, {
+import {
+  validateManifestV2,
+  validateManifestV3,
   type ValidationError,
 } from "./manifest-validator.js";
 
@@ -55,18 +57,36 @@ export function validate(text: string): Finding[] {
     { severity: "ok", layer: 1, message: "Layer 1 passed - well-formed JSON." },
   ];
 
-  // layer 2: does the parsed manifest match the IIIF Presentation 3.0 structure?
-  const matchesSchema = validateManifestStructure(parsedManifest);
+  // layer 2: does the parsed manifest match a supported IIIF Presentation structure?
+  // loupe-iiif only knows the IIIF Presentation API's shape, so it detects which version
+  // a manifest declares (via @context) and validates against that version's schema.
+  // ponytail: v2 and v3 today; add a schema + detectPresentationVersion branch for v4
+  // once its context URI and structure are stable.
+  const version = detectPresentationVersion(parsedManifest);
+  if (version === "unknown") {
+    findings.push({
+      severity: "error",
+      layer: 2,
+      message:
+        "Layer 2: could not detect a supported IIIF Presentation version from @context. " +
+        "loupe-iiif currently validates Presentation 2.1 and 3.0 (v4 draft support planned).",
+      pointer: "/@context",
+    });
+    return findings;
+  }
+
+  const { validateStructure, versionLabel, lint } = presentationVersions[version];
+  const matchesSchema = validateStructure(parsedManifest);
   if (matchesSchema) {
     findings.push({
       severity: "ok",
       layer: 2,
-      message: "Layer 2 passed - matches the IIIF Presentation 3.0 structure.",
+      message: `Layer 2 passed - matches the IIIF Presentation ${versionLabel} structure.`,
     });
     // layer 4: best-practice lint only makes sense once the structure is valid.
-    findings.push(...lintBestPractices(parsedManifest));
+    findings.push(...lint(parsedManifest));
   } else {
-    for (const schemaError of collapseAnyOfNoise(validateManifestStructure.errors ?? [])) {
+    for (const schemaError of collapseAnyOfNoise(validateStructure.errors ?? [])) {
       const location = schemaError.instancePath || "(root)";
       findings.push({
         severity: "error",
@@ -78,6 +98,49 @@ export function validate(text: string): Finding[] {
   }
 
   return findings;
+}
+
+type PresentationVersion = "2" | "3";
+
+// one entry per supported IIIF Presentation API version: which schema validates it,
+// what to call it in messages, and which best-practice lint rules apply.
+const presentationVersions: Record<
+  PresentationVersion,
+  {
+    validateStructure: typeof validateManifestV3;
+    versionLabel: string;
+    lint: (manifest: unknown) => Finding[];
+  }
+> = {
+  "3": { validateStructure: validateManifestV3, versionLabel: "3.0", lint: lintBestPracticesV3 },
+  "2": { validateStructure: validateManifestV2, versionLabel: "2.1", lint: lintBestPracticesV2 },
+};
+
+const presentation3ContextUri = "http://iiif.io/api/presentation/3/context.json";
+// Presentation 2 and the legacy Shared Canvas context it grew out of are structurally
+// identical, and real institutions (e.g. the Smithsonian) still publish the latter.
+const presentation2ContextUris = new Set([
+  "http://iiif.io/api/presentation/2/context.json",
+  "http://www.shared-canvas.org/ns/context.json",
+]);
+
+// sniffs @context to figure out which IIIF Presentation API version a manifest claims
+// to be. this only reads @context - it does not confirm the rest of the document
+// matches that version's schema, which is what the L2 schema check above is for.
+function detectPresentationVersion(manifest: unknown): PresentationVersion | "unknown" {
+  if (!isRecord(manifest)) {
+    return "unknown";
+  }
+  const context = manifest["@context"];
+  const contextUris = typeof context === "string" ? [context] : Array.isArray(context) ? context : [];
+
+  if (contextUris.includes(presentation3ContextUri)) {
+    return "3";
+  }
+  if (contextUris.some((uri) => presentation2ContextUris.has(uri))) {
+    return "2";
+  }
+  return "unknown";
 }
 
 // Ajv reports an anyOf/oneOf failure as every branch's individual errors plus a generic
@@ -124,7 +187,7 @@ function collapseAnyOfNoise(errors: ValidationError[]): ValidationError[] {
 // layer 4: things that are valid but not recommended by the IIIF spec. warnings, not
 // errors. ponytail: a small growable set of high-value checks, not the full recommendation
 // list — add rules as real manifests surface them.
-function lintBestPractices(manifest: unknown): Finding[] {
+function lintBestPracticesV3(manifest: unknown): Finding[] {
   const warnings: Finding[] = [];
   if (!isRecord(manifest)) {
     return warnings;
@@ -193,13 +256,90 @@ function lintBestPractices(manifest: unknown): Finding[] {
   return warnings;
 }
 
+// layer 4 for Presentation 2: the same spirit as lintBestPracticesV3, adapted to v2's
+// field names (description/license/attribution instead of summary/rights/provider) and
+// its extra sequences → canvases nesting. label is skipped here since the v2 schema
+// already requires it on both Manifest and Canvas, so a missing one is an L2 error, not
+// an L4 warning.
+function lintBestPracticesV2(manifest: unknown): Finding[] {
+  const warnings: Finding[] = [];
+  if (!isRecord(manifest)) {
+    return warnings;
+  }
+
+  if (typeof manifest["@id"] === "string" && manifest["@id"].startsWith("http://")) {
+    warnings.push(warn("Manifest @id uses http; https is recommended."));
+  }
+
+  if (manifest.description === undefined) {
+    warnings.push(warn("Manifest has no description; a short description is recommended."));
+  }
+
+  if (manifest.thumbnail === undefined) {
+    warnings.push(warn("Manifest has no thumbnail; one is recommended for previews."));
+  }
+
+  if (manifest.metadata === undefined) {
+    warnings.push(warn("Manifest has no metadata; descriptive metadata is recommended."));
+  }
+
+  if (manifest.license === undefined && manifest.attribution === undefined) {
+    warnings.push(
+      warn(
+        "Manifest has no license or attribution; consider adding licensing/attribution info (optional per spec).",
+      ),
+    );
+  }
+
+  const canvases = collectV2Canvases(manifest);
+  const withoutContent = canvases.filter(
+    (canvas) => !Array.isArray(canvas.images) || canvas.images.length === 0,
+  ).length;
+  if (withoutContent > 0) {
+    warnings.push(
+      warn(
+        `${withoutContent} canvas(es) have no content (images); each canvas should have at least one image.`,
+      ),
+    );
+  }
+
+  return warnings;
+}
+
+// flattens every canvas across every sequence. safe against a manifest that failed the
+// sequences/canvases shape checks, since that path never reaches L4 lint.
+function collectV2Canvases(manifest: Record<string, unknown>): Record<string, unknown>[] {
+  if (!Array.isArray(manifest.sequences)) {
+    return [];
+  }
+  return manifest.sequences.flatMap((sequence) =>
+    isRecord(sequence) && Array.isArray(sequence.canvases)
+      ? sequence.canvases.filter(isRecord)
+      : [],
+  );
+}
+
 function warn(message: string): Finding {
   return { severity: "warning", layer: 4, message };
 }
 
 // content resources whose id should actually dereference. canvas/service/manifest-child
-// identifiers are deliberately excluded — in IIIF those need not resolve.
-const contentResourceTypes = new Set(["Image", "Sound", "Video", "Text", "Dataset"]);
+// identifiers are deliberately excluded — in IIIF those need not resolve. covers both
+// Presentation 3's plain types and Presentation 2's DCMI "dctypes:" ones (e.g. a v2
+// canvas's images[].resource is a dctypes:Image nested inside an oa:Annotation).
+// dctypes:Image/Sound/Text are named explicitly by the 2.0 spec; dctypes:MovingImage
+// isn't spec-mandated but is the de facto convention real AV manifests use.
+const contentResourceTypes = new Set([
+  "Image",
+  "Sound",
+  "Video",
+  "Text",
+  "Dataset",
+  "dctypes:Image",
+  "dctypes:Sound",
+  "dctypes:MovingImage",
+  "dctypes:Text",
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -217,6 +357,8 @@ function escapePointerSegment(segment: string | number): string {
 // collect the http(s) URLs worth fetching — the manifest's own id plus every nested
 // content resource id — each mapped to the JSON Pointer of the id that referenced it,
 // so a dead link can be marked and jumped to in the editor. deduped (first wins).
+// checks both Presentation 3's "id"/"type" and Presentation 2's "@id"/"@type", since
+// this walk runs on manifests of either version.
 function collectResourceUrls(manifest: unknown): Map<string, string> {
   const urlToPointer = new Map<string, string>();
 
@@ -228,19 +370,20 @@ function collectResourceUrls(manifest: unknown): Map<string, string> {
     if (!isRecord(value)) {
       return;
     }
-    const isContentResource =
-      typeof value.type === "string" && contentResourceTypes.has(value.type);
+    const type = value.type ?? value["@type"];
+    const isContentResource = typeof type === "string" && contentResourceTypes.has(type);
     const isManifestRoot = path.length === 0;
+    const idKey = typeof value.id === "string" ? "id" : typeof value["@id"] === "string" ? "@id" : undefined;
     if (
       (isContentResource || isManifestRoot) &&
-      typeof value.id === "string" &&
-      isHttpUrl(value.id) &&
-      !urlToPointer.has(value.id)
+      idKey !== undefined &&
+      isHttpUrl(value[idKey] as string) &&
+      !urlToPointer.has(value[idKey] as string)
     ) {
-      const pointer = [...path, "id"]
+      const pointer = [...path, idKey]
         .map((segment) => "/" + escapePointerSegment(segment))
         .join("");
-      urlToPointer.set(value.id, pointer);
+      urlToPointer.set(value[idKey] as string, pointer);
     }
     for (const key of Object.keys(value)) {
       walk(value[key], [...path, key]);

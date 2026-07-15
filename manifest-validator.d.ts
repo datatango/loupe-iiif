@@ -1,9 +1,10 @@
 // hand-written types for the generated validator (manifest-validator.js).
 //
-// scripts/build-validator.js precompiles the IIIF schema with Ajv and writes
-// manifest-validator.js as plain, eval-free JavaScript — with no type information.
-// this declaration tells TypeScript the shape workbench.ts relies on. it sits next
-// to the generated .js file, so TypeScript uses it as that module's types.
+// scripts/build-validator.js precompiles the IIIF schemas (one per supported
+// Presentation API version) with Ajv and writes manifest-validator.js as plain,
+// eval-free JavaScript — with no type information. this declaration tells
+// TypeScript the shape validate.ts relies on. it sits next to the generated .js
+// file, so TypeScript uses it as that module's types.
 //
 // the export shape (a boolean-returning function that hangs its problems off an
 // `errors` property) is Ajv's stable standalone contract, so this file is
@@ -29,5 +30,6 @@ export interface ValidateManifestStructure {
   errors?: ValidationError[] | null;
 }
 
-declare const validateManifestStructure: ValidateManifestStructure;
-export default validateManifestStructure;
+// one named export per supported IIIF Presentation API version.
+export declare const validateManifestV3: ValidateManifestStructure;
+export declare const validateManifestV2: ValidateManifestStructure;

@@ -291,7 +291,7 @@
 {/snippet}
 
 <header>
-  <h1>Loupe</h1>
+  <h1>loupe-iiif</h1>
   <span>IIIF Presentation Manifest Checker &amp; Validator</span>
   <div class="help">
     <button class="help-button" aria-label="Help" aria-describedby="help-popup">
@@ -408,7 +408,7 @@
     margin-left: auto;
     margin-right: 21px;
     /* the header aligns children on the text baseline; center the icon against
-       the "Loupe" wordmark's height instead. */
+       the "loupe-iiif" wordmark's height instead. */
     align-self: center;
   }
   .help-button {
