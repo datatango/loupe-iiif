@@ -1,6 +1,6 @@
 # loupe-iiif
 
-![loupe-iiif screenshot](assets/screenshot.png)
+https://github.com/user-attachments/assets/df72093b-f562-4871-bf8e-01d3c14e209f
 
 loupe-iiif is a browser extension that checks and validates **[IIIF](https://iiif.io) manifests**: the JSON files that tell viewers how to present digital objects (A/V, books, artworks, maps, scores) and where to find their media.
 
